@@ -14,8 +14,7 @@ CORS(app)
 
 # ---------------- CONFIGURAZIONE ----------------
 ICS_URL = os.environ.get("ICS_URL", "")
-NAS_PATH = os.environ.get("NAS_PATH", "/nas")            # sola lettura: solo per statistiche spazio
-
+NAS_PATH = os.environ.get("NAS_PATH", "/nas")
 DATA_PATH = os.environ.get("DATA_PATH", "/data")
 SLEEP_STATE_FILE = os.path.join(DATA_PATH, "sleep_state.json")
 SLEEP_HISTORY_FILE = os.path.join(DATA_PATH, "sleep_history.json")
@@ -24,7 +23,7 @@ SLEEP_HISTORY_MAX = int(os.environ.get("SLEEP_HISTORY_MAX", "30"))
 IMMICH_URL = os.environ.get("IMMICH_URL", "").rstrip("/")
 IMMICH_API_KEY = os.environ.get("IMMICH_API_KEY", "")
 IMMICH_UNKNOWN_ALBUM = os.environ.get("IMMICH_UNKNOWN_ALBUM", "Da taggare")
-FACE_WAIT_SECONDS = float(os.environ.get("FACE_WAIT_SECONDS", "4"))
+FACE_WAIT_SECONDS = float(os.environ.get("FACE_WAIT_SECONDS", "5"))
 
 CLEANUP_DAYS = int(os.environ.get("CLEANUP_DAYS", "7"))
 CLEANUP_INTERVAL_HOURS = int(os.environ.get("CLEANUP_INTERVAL_HOURS", "24"))
@@ -87,7 +86,6 @@ def nas():
             "online": True,
             "used_gb": used_gb,
             "total_gb": total_gb,
-            # retrocompatibilità
             "used_tb": round(used / (1024 ** 4), 2),
             "total_tb": round(total / (1024 ** 4), 2),
         })
@@ -96,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE
+# IMMICH FACE – CORRETTO CON RETRY
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -114,9 +112,26 @@ def immich_upload(file_storage):
 
 
 def immich_get_faces(asset_id):
-    r = requests.get(f"{IMMICH_URL}/faces", headers=immich_headers(), params={"id": asset_id}, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    """Ottiene i volti riconosciuti per un asset, con retry per aspettare il job."""
+    max_retries = 5
+    retry_delay = 2  # secondi
+    
+    for attempt in range(max_retries):
+        try:
+            r = requests.get(f"{IMMICH_URL}/faces", headers=immich_headers(), 
+                           params={"id": asset_id}, timeout=10)
+            r.raise_for_status()
+            data = r.json()
+            if data and len(data) > 0:
+                return data
+            if attempt < max_retries - 1:
+                print(f"[faces] tentativo {attempt+1}: nessun volto trovato, aspetto {retry_delay}s...")
+                time.sleep(retry_delay)
+        except Exception as e:
+            print(f"[faces] errore tentativo {attempt+1}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(retry_delay)
+    return []
 
 
 def immich_delete_asset(asset_id):
@@ -155,27 +170,45 @@ def identify():
 
     try:
         asset_id = immich_upload(request.files["foto"])
+        print(f"[identify] asset_id: {asset_id}")
     except Exception as e:
+        print(f"[identify] upload fallito: {e}")
         return jsonify({"status": "errore", "message": f"upload fallito: {e}"}), 500
 
     time.sleep(FACE_WAIT_SECONDS)
 
     try:
         faces = immich_get_faces(asset_id)
-    except Exception:
+        print(f"[identify] faces ricevuti: {len(faces)}")
+        for f in faces:
+            print(f"[identify] face: {json.dumps(f, indent=2)}")
+    except Exception as e:
+        print(f"[identify] errore lettura faces: {e}")
         faces = []
 
     person = None
     person_name = None
+    person_id = None
+
     for f in faces:
-        name = (f.get("person") or {}).get("name") or f.get("personName")
-        if f.get("personId") and name:
+        p = f.get("person") or {}
+        name = p.get("name") or f.get("personName") or f.get("name") or None
+        pid = p.get("id") or f.get("personId") or f.get("id") or None
+        
+        if pid and name:
             person = f
             person_name = name
+            person_id = pid
+            print(f"[identify] persona trovata: {name} (id: {pid})")
             break
+        
+        if f.get("personId") and not name:
+            person = f
+            person_id = f.get("personId")
+            person_name = "Sconosciuto"
+            print(f"[identify] volto con id {person_id} ma senza nome")
 
-    if person:
-        person_id = person.get("personId")
+    if person and person_name and person_name != "Sconosciuto":
         immich_delete_asset(asset_id)
         return jsonify({
             "status": "riconosciuto",
@@ -183,12 +216,22 @@ def identify():
             "name": person_name,
             "thumbnailUrl": f"/persona-foto/{person_id}",
         })
+    elif person and person_id:
+        immich_delete_asset(asset_id)
+        return jsonify({
+            "status": "sconosciuto",
+            "message": "Persona presente su Immich ma senza nome",
+            "assetId": asset_id,
+            "previewUrl": f"/foto-asset/{asset_id}",
+        })
     else:
         try:
             album_id = immich_find_or_create_album(IMMICH_UNKNOWN_ALBUM)
             immich_add_to_album(album_id, asset_id)
-        except Exception:
-            pass
+            print(f"[identify] foto aggiunta all'album '{IMMICH_UNKNOWN_ALBUM}'")
+        except Exception as e:
+            print(f"[identify] errore aggiunta album: {e}")
+        
         return jsonify({
             "status": "sconosciuto",
             "assetId": asset_id,
@@ -322,4 +365,4 @@ def healthcheck():
 if __name__ == "__main__":
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
     cleanup_thread.start()
-    app.run(host="0.0.0.0", port=8420)
+    app.run(host="0.0.0.0", port=8420, debug=True)
