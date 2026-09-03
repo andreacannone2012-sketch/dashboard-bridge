@@ -1,0 +1,4 @@
+flask==3.0.3
+flask-cors==4.0.1
+requests==2.32.3
+icalendar==5.0.13

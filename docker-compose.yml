@@ -1,0 +1,29 @@
+services:
+  dashboard-bridge:
+    # Sostituisci OWNER/REPO con il tuo utente/nome-repository GitHub
+    image: ghcr.io/OWNER/REPO:latest
+    container_name: dashboard-bridge
+    restart: unless-stopped
+    ports:
+      - "8420:8420"
+    environment:
+      # Google Calendar > impostazioni calendario > "Indirizzo segreto in formato iCal"
+      - ICS_URL=https://calendar.google.com/calendar/ical/TUO_INDIRIZZO/private-xxxxx/basic.ics
+      # Percorso del volume NAS di cui vuoi vedere lo spazio usato (sola lettura)
+      - NAS_PATH=/nas
+      # Immich: URL base che finisce in /api, e una API key creata da
+      # Immich > Impostazioni account > API Keys
+      - IMMICH_URL=http://IP-DEL-TUO-IMMICH:2283/api
+      - IMMICH_API_KEY=incolla-qui-la-tua-api-key
+      - IMMICH_UNKNOWN_ALBUM=Da taggare
+      - FACE_WAIT_SECONDS=4
+      # Sleep as Android: pulizia automatica file audio/log più vecchi di N giorni
+      - CLEANUP_DAYS=7
+      - CLEANUP_INTERVAL_HOURS=24
+    volumes:
+      # Sostituisci /DATA con il percorso reale dello storage principale in ZimaOS (sola lettura)
+      - /DATA:/nas:ro
+      # Dati propri del bridge: stato sonno, storico notti, eventuali file
+      # audio/log da ripulire automaticamente. DEVE essere scrivibile
+      # (niente ":ro" qui) e persistente tra i riavvii del container.
+      - /DATA/dashboard-bridge-data:/data

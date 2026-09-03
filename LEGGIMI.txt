@@ -1,0 +1,104 @@
+DASHBOARD BRIDGE — istruzioni rapide (via GitHub + GUI ZimaOS)
+================================================================
+
+Perché serve GitHub: la GUI di ZimaOS che accetta solo un file YAML
+si aspetta un'immagine Docker già pronta da scaricare, non può
+costruirla da un Dockerfile locale. Usiamo GitHub Actions per
+costruire l'immagine automaticamente e pubblicarla su GitHub
+Container Registry (ghcr.io, gratuito) — poi la GUI di ZimaOS
+scarica quella.
+
+PASSO 1 — Crea il repository
+   - github.com > New repository (es. "dashboard-bridge")
+   - Carica TUTTO il contenuto di questa cartella, inclusa la
+     cartella nascosta .github/workflows
+
+PASSO 2 — Lascia partire la build automatica
+   - Scheda "Actions" del repository: il workflow parte da solo,
+     1-2 minuti. Da quel momento l'immagine è su:
+       ghcr.io/TUO-UTENTE/dashboard-bridge:latest
+
+PASSO 3 — Rendi il pacchetto visibile (se il repo è privato)
+   - GitHub > profilo > Packages > dashboard-bridge > Package
+     settings > Change visibility > Public
+
+PASSO 4 — Aggiorna il docker-compose.yml
+   - Sostituisci "OWNER/REPO" con "TUO-UTENTE/dashboard-bridge"
+   - Compila ICS_URL, NAS_PATH, IMMICH_URL, IMMICH_API_KEY (sotto)
+
+PASSO 5 — Incolla in ZimaOS
+   - GUI ZimaOS > Docker/Compose > incolla il docker-compose.yml
+
+------------------------------------------------------------------
+
+CONFIGURAZIONE
+
+1) GOOGLE CALENDAR
+   - Google Calendar > impostazioni calendario > "Indirizzo segreto
+     in formato iCal" > incollalo in ICS_URL
+
+2) SPAZIO NAS
+   - Cambia "/DATA" nel primo volume con il percorso reale del tuo
+     storage in ZimaOS. Resta montato in sola lettura (:ro) apposta:
+     il bridge legge solo lo spazio usato, non tocca i tuoi file
+
+3) DATI DEL BRIDGE (stato sonno, storico, pulizia automatica)
+   - Il secondo volume (/DATA/dashboard-bridge-data:/data) è invece
+     SCRIVIBILE — è dove il bridge salva lo stato del sonno e da
+     dove la pulizia automatica cancella i file vecchi. Cambia il
+     percorso a sinistra se preferisci un'altra cartella sul NAS,
+     ma lascialo scrivibile (niente ":ro")
+
+4) IMMICH (per "Immich Face")
+   - Immich > Impostazioni account > API Keys > crea una chiave
+     (permessi minimi: asset.read, asset.upload, asset.delete,
+     album.read, album.write, person.read)
+   - IMMICH_URL=http://IP-DEL-TUO-IMMICH:2283/api
+   - IMMICH_API_KEY=<la chiave>
+   - Foto non riconosciute finiscono nell'album "Da taggare"
+   - Nota: il riconoscimento è un job in background su Immich, non
+     istantaneo — il bridge aspetta FACE_WAIT_SECONDS (default 4s)
+
+5) IMMICH-KIOSK (opzionale)
+   - Progetto separato: github.com/damongolding/immich-kiosk
+   - Metti il suo indirizzo nelle impostazioni della dashboard come
+     "URL Kiosk"
+
+6) SLEEP AS ANDROID — Webhook
+   - Nell'app Sleep as Android: Impostazioni > Servizi > Webhook
+   - Attivalo e imposta come URL:
+       http://IP-DEL-TUO-NAS:8420/api/sleep
+   - Metodo: POST, corpo in formato JSON (l'app te lo permette di
+     personalizzare con placeholder tipo $event, $sleepQuality,
+     $lengthMinutes — usa quelli che preferisci, il bridge accetta
+     qualsiasi struttura JSON e la salva così com'è)
+   - La dashboard mostra i campi più comuni (sleepQuality/quality,
+     lengthMinutes/length, event) — se il tuo template usa nomi
+     diversi, cambiali nella funzione renderSleepSummary() del file
+     HTML della dashboard
+
+7) SLEEP AS ANDROID — avvio/stop tracciamento dal tablet
+   - Il pulsante "Buonanotte" nella dashboard usa
+     fully.broadcastIntent(...) di Fully Kiosk Browser per avviare
+     il tracciamento — funziona SOLO se:
+     a) la dashboard gira dentro Fully Kiosk Browser (non Chrome)
+     b) in Fully Kiosk: Impostazioni Web Avanzate > "Enable
+        JavaScript Interface" è attivo
+   - Se non parte, verifica via logcat Android il nome esatto
+     dell'azione broadcast della tua versione di Sleep as Android
+     (a volte cambia tra versioni) e aggiornalo nel file HTML
+
+8) PULIZIA AUTOMATICA FILE VECCHI
+   - Ogni CLEANUP_INTERVAL_HOURS (default 24h) il bridge cancella,
+     dentro /data/recordings e /data/logs, i file audio/log più
+     vecchi di CLEANUP_DAYS giorni (default 7)
+   - Per testarla subito senza aspettare: fai una richiesta POST a
+       http://IP-DEL-TUO-NAS:8420/api/cleanup/run
+     (es. con curl, o Postman) — risponde con quanti file ha rimosso
+
+9) COLLEGARE LA DASHBOARD (icona impostazioni in alto a destra)
+   - URL Agenda:          http://IP-DEL-NAS:8420/agenda
+   - URL NAS:              http://IP-DEL-NAS:8420/nas
+   - URL Identificazione:  http://IP-DEL-NAS:8420/identify
+   - URL Kiosk:            http://IP-DEL-NAS:3000   (se installato)
+   - URL Sleep Stats:      http://IP-DEL-NAS:8420/api/sleep/stats
