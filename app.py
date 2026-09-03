@@ -9,7 +9,7 @@ import threading
 from datetime import date, datetime, timezone, timedelta
 from icalendar import Calendar
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
 # ---------------- CONFIGURAZIONE ----------------
@@ -42,7 +42,7 @@ def immich_headers(accept_json=True):
 
 
 # ==================================================================
-# AGENDA (Google Calendar via ICS)
+# AGENDA
 # ==================================================================
 @app.route("/agenda")
 def agenda():
@@ -74,7 +74,7 @@ def agenda():
 
 
 # ==================================================================
-# NAS – restituisce spazio in GB
+# NAS – in GB
 # ==================================================================
 @app.route("/nas")
 def nas():
@@ -94,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – CORRETTO CON ENDPOINT /assets/{id}/faces
+# IMMICH FACE
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -195,13 +195,16 @@ def identify():
     person_name = None
 
     for face in faces:
-        pid = face.get("personId")
-        pname = face.get("personName")
-        if pid and pname:
-            person_id = pid
-            person_name = pname
-            print(f"[identify] persona trovata: {pname} (id: {pid})")
-            break
+        # La struttura corretta: face.person.id e face.person.name
+        person = face.get("person")
+        if person:
+            pid = person.get("id")
+            pname = person.get("name")
+            if pid and pname:
+                person_id = pid
+                person_name = pname
+                print(f"[identify] persona trovata: {pname} (id: {pid})")
+                break
 
     if person_id and person_name:
         immich_delete_asset(asset_id)
@@ -210,14 +213,6 @@ def identify():
             "personId": person_id,
             "name": person_name,
             "thumbnailUrl": f"/persona-foto/{person_id}",
-        })
-    elif person_id and not person_name:
-        immich_delete_asset(asset_id)
-        return jsonify({
-            "status": "sconosciuto",
-            "message": "Persona senza nome su Immich",
-            "assetId": asset_id,
-            "previewUrl": f"/foto-asset/{asset_id}",
         })
     else:
         try:
@@ -258,7 +253,7 @@ def foto_asset(asset_id):
 
 
 # ==================================================================
-# SLEEP AS ANDROID — webhook + stato
+# SLEEP AS ANDROID
 # ==================================================================
 @app.route("/api/sleep", methods=["POST"])
 def sleep_webhook():
@@ -311,7 +306,7 @@ def _write_json(path, data):
 
 
 # ==================================================================
-# MANUTENZIONE — pulizia automatica file vecchi
+# MANUTENZIONE
 # ==================================================================
 def cleanup_old_files():
     cutoff = time.time() - (CLEANUP_DAYS * 86400)
@@ -356,6 +351,11 @@ def cleanup_run_now():
 @app.route("/health")
 def healthcheck():
     return jsonify({"status": "ok"})
+
+
+@app.route('/')
+def serve_index():
+    return app.send_static_file('index.html')
 
 
 if __name__ == "__main__":
