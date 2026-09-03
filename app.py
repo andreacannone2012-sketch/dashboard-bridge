@@ -94,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – CORRETTO CON RETRY
+# IMMICH FACE – CORRETTO CON ENDPOINT /assets/{id}/faces
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -112,25 +112,32 @@ def immich_upload(file_storage):
 
 
 def immich_get_faces(asset_id):
-    """Ottiene i volti riconosciuti per un asset, con retry per aspettare il job."""
+    """Ottiene i volti riconosciuti per un asset usando l'endpoint corretto."""
     max_retries = 5
-    retry_delay = 2  # secondi
+    retry_delay = 2
     
     for attempt in range(max_retries):
         try:
-            r = requests.get(f"{IMMICH_URL}/faces", headers=immich_headers(), 
-                           params={"id": asset_id}, timeout=10)
+            url = f"{IMMICH_URL}/assets/{asset_id}/faces"
+            print(f"[faces] tentativo {attempt+1}: {url}")
+            
+            r = requests.get(url, headers=immich_headers(), timeout=10)
             r.raise_for_status()
             data = r.json()
+            
+            print(f"[faces] risposta: {json.dumps(data, indent=2)}")
+            
             if data and len(data) > 0:
                 return data
             if attempt < max_retries - 1:
-                print(f"[faces] tentativo {attempt+1}: nessun volto trovato, aspetto {retry_delay}s...")
+                print(f"[faces] nessun volto, aspetto {retry_delay}s...")
                 time.sleep(retry_delay)
+                retry_delay *= 2
         except Exception as e:
             print(f"[faces] errore tentativo {attempt+1}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
+                retry_delay *= 2
     return []
 
 
@@ -179,36 +186,24 @@ def identify():
 
     try:
         faces = immich_get_faces(asset_id)
-        print(f"[identify] faces ricevuti: {len(faces)}")
-        for f in faces:
-            print(f"[identify] face: {json.dumps(f, indent=2)}")
+        print(f"[identify] volti ricevuti: {len(faces)}")
     except Exception as e:
-        print(f"[identify] errore lettura faces: {e}")
+        print(f"[identify] errore lettura volti: {e}")
         faces = []
 
-    person = None
-    person_name = None
     person_id = None
+    person_name = None
 
-    for f in faces:
-        p = f.get("person") or {}
-        name = p.get("name") or f.get("personName") or f.get("name") or None
-        pid = p.get("id") or f.get("personId") or f.get("id") or None
-        
-        if pid and name:
-            person = f
-            person_name = name
+    for face in faces:
+        pid = face.get("personId")
+        pname = face.get("personName")
+        if pid and pname:
             person_id = pid
-            print(f"[identify] persona trovata: {name} (id: {pid})")
+            person_name = pname
+            print(f"[identify] persona trovata: {pname} (id: {pid})")
             break
-        
-        if f.get("personId") and not name:
-            person = f
-            person_id = f.get("personId")
-            person_name = "Sconosciuto"
-            print(f"[identify] volto con id {person_id} ma senza nome")
 
-    if person and person_name and person_name != "Sconosciuto":
+    if person_id and person_name:
         immich_delete_asset(asset_id)
         return jsonify({
             "status": "riconosciuto",
@@ -216,11 +211,11 @@ def identify():
             "name": person_name,
             "thumbnailUrl": f"/persona-foto/{person_id}",
         })
-    elif person and person_id:
+    elif person_id and not person_name:
         immich_delete_asset(asset_id)
         return jsonify({
             "status": "sconosciuto",
-            "message": "Persona presente su Immich ma senza nome",
+            "message": "Persona senza nome su Immich",
             "assetId": asset_id,
             "previewUrl": f"/foto-asset/{asset_id}",
         })
@@ -234,6 +229,7 @@ def identify():
         
         return jsonify({
             "status": "sconosciuto",
+            "message": "Nessun volto riconosciuto",
             "assetId": asset_id,
             "previewUrl": f"/foto-asset/{asset_id}",
         })
