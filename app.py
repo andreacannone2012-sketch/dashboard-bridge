@@ -16,23 +16,19 @@ CORS(app)
 ICS_URL = os.environ.get("ICS_URL", "")
 NAS_PATH = os.environ.get("NAS_PATH", "/nas")            # sola lettura: solo per statistiche spazio
 
-# Percorso SCRIVIBILE per i dati propri del bridge (stato sonno, log, cache).
-# Deve puntare a un volume Docker montato in lettura/scrittura (vedi docker-compose.yml),
-# diverso da NAS_PATH che resta :ro apposta per sicurezza.
 DATA_PATH = os.environ.get("DATA_PATH", "/data")
 SLEEP_STATE_FILE = os.path.join(DATA_PATH, "sleep_state.json")
 SLEEP_HISTORY_FILE = os.path.join(DATA_PATH, "sleep_history.json")
-SLEEP_HISTORY_MAX = int(os.environ.get("SLEEP_HISTORY_MAX", "30"))  # quante notti tenere
+SLEEP_HISTORY_MAX = int(os.environ.get("SLEEP_HISTORY_MAX", "30"))
 
-IMMICH_URL = os.environ.get("IMMICH_URL", "").rstrip("/")  # es. http://192.168.1.50:2283/api
+IMMICH_URL = os.environ.get("IMMICH_URL", "").rstrip("/")
 IMMICH_API_KEY = os.environ.get("IMMICH_API_KEY", "")
 IMMICH_UNKNOWN_ALBUM = os.environ.get("IMMICH_UNKNOWN_ALBUM", "Da taggare")
 FACE_WAIT_SECONDS = float(os.environ.get("FACE_WAIT_SECONDS", "4"))
 
-# Pulizia automatica file vecchi (audio/log) dentro DATA_PATH
 CLEANUP_DAYS = int(os.environ.get("CLEANUP_DAYS", "7"))
 CLEANUP_INTERVAL_HOURS = int(os.environ.get("CLEANUP_INTERVAL_HOURS", "24"))
-CLEANUP_SUBFOLDERS = ["recordings", "logs"]  # sottocartelle di DATA_PATH da ripulire
+CLEANUP_SUBFOLDERS = ["recordings", "logs"]
 CLEANUP_EXTENSIONS = {".mp3", ".wav", ".m4a", ".ogg", ".log", ".json"}
 
 os.makedirs(DATA_PATH, exist_ok=True)
@@ -47,11 +43,10 @@ def immich_headers(accept_json=True):
 
 
 # ==================================================================
-# AGENDA (Google Calendar via ICS) — invariato
+# AGENDA (Google Calendar via ICS)
 # ==================================================================
 @app.route("/agenda")
 def agenda():
-    """Restituisce gli eventi di OGGI dal calendario Google (link ICS segreto)."""
     if not ICS_URL:
         return jsonify([])
     try:
@@ -80,15 +75,19 @@ def agenda():
 
 
 # ==================================================================
-# NAS — invariato (sola lettura)
+# NAS – restituisce spazio in GB
 # ==================================================================
 @app.route("/nas")
 def nas():
-    """Restituisce lo spazio disco reale del NAS (basato sul volume montato)."""
     try:
         total, used, _free = shutil.disk_usage(NAS_PATH)
+        used_gb = round(used / (1024 ** 3), 2)
+        total_gb = round(total / (1024 ** 3), 2)
         return jsonify({
             "online": True,
+            "used_gb": used_gb,
+            "total_gb": total_gb,
+            # retrocompatibilità
             "used_tb": round(used / (1024 ** 4), 2),
             "total_tb": round(total / (1024 ** 4), 2),
         })
@@ -97,7 +96,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE — invariato
+# IMMICH FACE
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -149,8 +148,6 @@ def immich_add_to_album(album_id, asset_id):
 
 @app.route("/identify", methods=["POST"])
 def identify():
-    """Riceve una foto, la carica su Immich, aspetta il riconoscimento facciale
-    e risponde con la persona trovata (o 'sconosciuto')."""
     if not IMMICH_URL or not IMMICH_API_KEY:
         return jsonify({"status": "errore", "message": "IMMICH_URL / IMMICH_API_KEY non configurati"}), 500
     if "foto" not in request.files:
@@ -224,20 +221,11 @@ def foto_asset(asset_id):
 # ==================================================================
 # SLEEP AS ANDROID — webhook + stato
 # ==================================================================
-# Sleep as Android (Impostazioni > Servizi > Webhook) può inviare una richiesta
-# HTTP POST a un URL a tua scelta ad eventi come: inizio/fine tracciamento,
-# sveglia suonata/posticipata, report di fine notte pronto. Il corpo esatto
-# (JSON) è quello che TU configuri nel template del Webhook dentro l'app —
-# questo endpoint accetta qualsiasi struttura JSON, la salva così com'è con
-# un timestamp di ricezione, e la espone alla dashboard. Se in Sleep as
-# Android non trovi un campo che ti aspetti qui, controlla il template del
-# Webhook nell'app: è lì che si decide cosa viene mandato.
 @app.route("/api/sleep", methods=["POST"])
 def sleep_webhook():
     try:
         payload = request.get_json(silent=True)
         if payload is None:
-            # fallback: alcuni webhook mandano form-urlencoded invece di JSON
             payload = request.form.to_dict() or {"raw": request.data.decode("utf-8", "ignore")}
     except Exception as e:
         return jsonify({"status": "errore", "message": f"payload illeggibile: {e}"}), 400
@@ -248,10 +236,7 @@ def sleep_webhook():
     }
 
     with _state_lock:
-        # stato "ultimo evento ricevuto", per un accesso rapido
         _write_json(SLEEP_STATE_FILE, entry)
-
-        # storico limitato (utile per un grafico "ultime notti" in futuro)
         history = _read_json(SLEEP_HISTORY_FILE, default=[])
         history.append(entry)
         history = history[-SLEEP_HISTORY_MAX:]
@@ -262,7 +247,6 @@ def sleep_webhook():
 
 @app.route("/api/sleep/stats")
 def sleep_stats():
-    """Ultimo stato del sonno + storico recente, per la dashboard."""
     with _state_lock:
         last = _read_json(SLEEP_STATE_FILE, default=None)
         history = _read_json(SLEEP_HISTORY_FILE, default=[])
@@ -284,16 +268,13 @@ def _write_json(path, data):
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)  # scrittura atomica, evita file corrotti se il container muore a metà
+    os.replace(tmp, path)
 
 
 # ==================================================================
 # MANUTENZIONE — pulizia automatica file vecchi
 # ==================================================================
 def cleanup_old_files():
-    """Cancella, dentro le sottocartelle CLEANUP_SUBFOLDERS di DATA_PATH,
-    i file con estensione audio/log più vecchi di CLEANUP_DAYS giorni.
-    NAS_PATH resta intoccato (è montato :ro apposta, per sicurezza)."""
     cutoff = time.time() - (CLEANUP_DAYS * 86400)
     removed = []
     for sub in CLEANUP_SUBFOLDERS:
@@ -318,7 +299,6 @@ def cleanup_old_files():
 
 
 def cleanup_loop():
-    # una passata subito all'avvio, poi ogni CLEANUP_INTERVAL_HOURS ore
     while True:
         try:
             cleanup_old_files()
@@ -329,7 +309,6 @@ def cleanup_loop():
 
 @app.route("/api/cleanup/run", methods=["POST"])
 def cleanup_run_now():
-    """Trigger manuale della pulizia (utile per test), invece di aspettare il timer."""
     removed = cleanup_old_files()
     return jsonify({"status": "ok", "removed_count": len(removed), "removed": removed})
 
