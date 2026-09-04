@@ -9,6 +9,7 @@ import threading
 from datetime import date, datetime, timezone, timedelta
 from icalendar import Calendar
 
+# MODIFICA QUI: aggiungi static_folder e static_url_path
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
@@ -94,7 +95,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE
+# IMMICH FACE – ENDPOINT CORRETTO
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -353,6 +354,9 @@ def healthcheck():
     return jsonify({"status": "ok"})
 
 
+# ==================================================================
+# SERVI LA DASHBOARD (AGGIUNTO)
+# ==================================================================
 @app.route('/')
 def serve_index():
     return app.send_static_file('index.html')
