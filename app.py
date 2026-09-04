@@ -9,7 +9,6 @@ import threading
 from datetime import date, datetime, timezone, timedelta
 from icalendar import Calendar
 
-# MODIFICA: static_folder per servire index.html
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
@@ -95,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – CORRETTO
+# IMMICH FACE – CON LOGGING COMPLETO
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -120,22 +119,22 @@ def immich_get_faces(asset_id):
     for attempt in range(max_retries):
         try:
             url = f"{IMMICH_URL}/assets/{asset_id}/faces"
-            print(f"[faces] tentativo {attempt+1}: {url}")
+            app.logger.info(f"[faces] tentativo {attempt+1}: {url}")
             
             r = requests.get(url, headers=immich_headers(), timeout=10)
             r.raise_for_status()
             data = r.json()
             
-            print(f"[faces] risposta: {json.dumps(data, indent=2)}")
+            app.logger.info(f"[faces] risposta: {json.dumps(data, indent=2)}")
             
             if data and len(data) > 0:
                 return data
             if attempt < max_retries - 1:
-                print(f"[faces] nessun volto, aspetto {retry_delay}s...")
+                app.logger.info(f"[faces] nessun volto, aspetto {retry_delay}s...")
                 time.sleep(retry_delay)
                 retry_delay *= 2
         except Exception as e:
-            print(f"[faces] errore tentativo {attempt+1}: {e}")
+            app.logger.error(f"[faces] errore tentativo {attempt+1}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(retry_delay)
                 retry_delay *= 2
@@ -178,25 +177,27 @@ def identify():
 
     try:
         asset_id = immich_upload(request.files["foto"])
-        print(f"[identify] asset_id: {asset_id}")
+        app.logger.info(f"[identify] asset_id: {asset_id}")
     except Exception as e:
-        print(f"[identify] upload fallito: {e}")
+        app.logger.error(f"[identify] upload fallito: {e}")
         return jsonify({"status": "errore", "message": f"upload fallito: {e}"}), 500
 
     time.sleep(FACE_WAIT_SECONDS)
 
     try:
         faces = immich_get_faces(asset_id)
-        print(f"[identify] volti ricevuti: {len(faces)}")
+        app.logger.info(f"[identify] volti ricevuti: {len(faces)}")
     except Exception as e:
-        print(f"[identify] errore lettura volti: {e}")
+        app.logger.error(f"[identify] errore lettura volti: {e}")
         faces = []
 
     person_id = None
     person_name = None
 
-    for face in faces:
-        # CORRETTO: legge person.id e person.name dall'oggetto person annidato
+    # DEBUG: stampa ogni volto per vedere la struttura
+    for idx, face in enumerate(faces):
+        app.logger.info(f"[identify] face {idx}: {json.dumps(face, indent=2)}")
+        # Tenta di estrarre la persona
         person = face.get("person")
         if person:
             pid = person.get("id")
@@ -204,7 +205,16 @@ def identify():
             if pid and pname:
                 person_id = pid
                 person_name = pname
-                print(f"[identify] persona trovata: {pname} (id: {pid})")
+                app.logger.info(f"[identify] persona trovata: {pname} (id: {pid})")
+                break
+        else:
+            # Fallback: cerca direttamente id e name nel volto (alcune versioni di Immich)
+            pid = face.get("personId") or face.get("id")
+            pname = face.get("personName") or face.get("name")
+            if pid and pname:
+                person_id = pid
+                person_name = pname
+                app.logger.info(f"[identify] persona trovata (fallback): {pname} (id: {pid})")
                 break
 
     if person_id and person_name:
@@ -219,9 +229,9 @@ def identify():
         try:
             album_id = immich_find_or_create_album(IMMICH_UNKNOWN_ALBUM)
             immich_add_to_album(album_id, asset_id)
-            print(f"[identify] foto aggiunta all'album '{IMMICH_UNKNOWN_ALBUM}'")
+            app.logger.info(f"[identify] foto aggiunta all'album '{IMMICH_UNKNOWN_ALBUM}'")
         except Exception as e:
-            print(f"[identify] errore aggiunta album: {e}")
+            app.logger.error(f"[identify] errore aggiunta album: {e}")
         
         return jsonify({
             "status": "sconosciuto",
@@ -329,7 +339,7 @@ def cleanup_old_files():
                 except OSError:
                     pass
     if removed:
-        print(f"[cleanup] rimossi {len(removed)} file più vecchi di {CLEANUP_DAYS} giorni")
+        app.logger.info(f"[cleanup] rimossi {len(removed)} file più vecchi di {CLEANUP_DAYS} giorni")
     return removed
 
 
@@ -338,7 +348,7 @@ def cleanup_loop():
         try:
             cleanup_old_files()
         except Exception as e:
-            print(f"[cleanup] errore: {e}")
+            app.logger.error(f"[cleanup] errore: {e}")
         time.sleep(CLEANUP_INTERVAL_HOURS * 3600)
 
 
