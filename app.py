@@ -9,7 +9,7 @@ import threading
 from datetime import date, datetime, timezone, timedelta
 from icalendar import Calendar
 
-# MODIFICA QUI: aggiungi static_folder e static_url_path
+# MODIFICA: static_folder per servire index.html
 app = Flask(__name__, static_folder='.', static_url_path='')
 CORS(app)
 
@@ -95,7 +95,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – ENDPOINT CORRETTO
+# IMMICH FACE – CORRETTO
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -196,7 +196,7 @@ def identify():
     person_name = None
 
     for face in faces:
-        # La struttura corretta: face.person.id e face.person.name
+        # CORRETTO: legge person.id e person.name dall'oggetto person annidato
         person = face.get("person")
         if person:
             pid = person.get("id")
@@ -355,7 +355,7 @@ def healthcheck():
 
 
 # ==================================================================
-# SERVI LA DASHBOARD (AGGIUNTO)
+# SERVI LA DASHBOARD
 # ==================================================================
 @app.route('/')
 def serve_index():
