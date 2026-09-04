@@ -1,0 +1,1596 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dashboard</title>
+<style>
+  :root{
+    --bg: #ffffff;
+    --card: #ffffff;
+    --line: #e4e4e4;
+    --line-strong: #111111;
+    --text: #111111;
+    --text-muted: #8a8a8a;
+    --fill: #111111;
+    --fill-soft: #f4f4f4;
+    --alert: #111111;
+    --shadow: 0 1px 3px rgba(17,17,17,0.04);
+    --shadow-float: 0 4px 20px rgba(17,17,17,0.14);
+    --overlay-bg: rgba(255,255,255,0.97);
+  }
+
+  [data-theme="dark"]{
+    --bg: #1a1a1a;
+    --card: #242424;
+    --line: #3a3a3a;
+    --line-strong: #eeeeee;
+    --text: #eeeeee;
+    --text-muted: #999999;
+    --fill: #eeeeee;
+    --fill-soft: #2d2d2d;
+    --alert: #ff6b6b;
+    --shadow: 0 1px 3px rgba(255,255,255,0.05);
+    --shadow-float: 0 4px 20px rgba(0,0,0,0.6);
+    --overlay-bg: rgba(30,30,30,0.97);
+  }
+
+  [data-theme="dark"] .toggle::after{ background:#1a1a1a; }
+  [data-theme="dark"] .toggle.on::after{ background:#1a1a1a; }
+  [data-theme="dark"] .day-chip{ background:#2d2d2d; color:#eee; border-color:#3a3a3a; }
+  [data-theme="dark"] .day-chip.active{ background:#eee; color:#111; }
+  [data-theme="dark"] .checkbox{ border-color:#eee; }
+  [data-theme="dark"] .checkbox.checked{ background:#eee; border-color:#eee; }
+  [data-theme="dark"] .checkbox.checked svg{ stroke:#111; }
+  [data-theme="dark"] #settingsPanel{ background:#242424; color:#eee; }
+  [data-theme="dark"] #settingsPanel input,
+  [data-theme="dark"] #settingsPanel select{ background:#2d2d2d; color:#eee; border-color:#3a3a3a; }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{
+    width:100%; height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow:hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+  button, input{ font-family: inherit; }
+  button{ -webkit-tap-highlight-color: transparent; }
+
+  .app{
+    display:grid;
+    grid-template-columns: 33% 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap:1px;
+    width:100vw; height:100vh;
+    background:var(--line);
+  }
+
+  .hero{
+    grid-row: 1 / 3;
+    grid-column: 1 / 2;
+    background:var(--card);
+    padding: var(--sp-7) var(--sp-6);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    gap:var(--sp-5);
+    transition: background 0.3s;
+  }
+  .card-todo{
+    grid-row: 1 / 2;
+    grid-column: 2 / 3;
+    background:var(--card);
+    padding: var(--sp-5) var(--sp-6);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    transition: background 0.3s;
+  }
+  .card-nas{
+    grid-row: 2 / 3;
+    grid-column: 2 / 3;
+    background:var(--card);
+    padding: var(--sp-5) var(--sp-6);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    transition: background 0.3s;
+  }
+  .agenda-expanded{
+    grid-row: 1 / 3;
+    grid-column: 3 / 4;
+    background:var(--card);
+    padding: var(--sp-5) var(--sp-6);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+    transition: background 0.3s;
+  }
+
+  :root{
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --sp-7: 48px;
+    --radius-s: 8px;
+    --radius-m: 12px;
+    --radius-l: 20px;
+  }
+
+  .greeting{
+    font-size: 0.95rem;
+    font-weight:bold;
+    color:var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:0.12em;
+  }
+  .clock{
+    font-size: 6.4rem;
+    font-weight:bold;
+    line-height:0.95;
+    font-variant-numeric: tabular-nums;
+    letter-spacing:-0.03em;
+    color:var(--text);
+  }
+  .date{
+    font-size: 1.15rem;
+    color:var(--text-muted);
+    text-transform:capitalize;
+    letter-spacing:0.01em;
+  }
+  .alarm-row{
+    margin-top:var(--sp-4);
+    display:flex;
+    align-items:center;
+    gap:var(--sp-4);
+    padding-top:var(--sp-5);
+    border-top:1px solid var(--line);
+    cursor:pointer;
+  }
+  .alarm-icon{
+    width:42px; height:42px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--fill-soft);
+    flex-shrink:0;
+  }
+  .alarm-info{ flex:1; min-width:0; }
+  .alarm-time{
+    font-size:1.35rem;
+    font-weight:600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing:-0.01em;
+  }
+  .alarm-time.off{ color:var(--text-muted); }
+  .alarm-label{ font-size:0.76rem; color:var(--text-muted); margin-top:1px; }
+
+  .card-title{
+    font-size:0.78rem;
+    font-weight:bold;
+    text-transform:uppercase;
+    letter-spacing:0.09em;
+    color:var(--text-muted);
+    margin-bottom:var(--sp-4);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .status-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--fill);
+    display:inline-block; margin-right:var(--sp-2);
+  }
+  .status-dot.off{ background:var(--alert); opacity:0.4; }
+
+  .list{
+    list-style:none;
+    overflow-y:auto;
+    flex:1;
+    display:flex; flex-direction:column; gap:var(--sp-3);
+  }
+  .list::-webkit-scrollbar{ width:4px; }
+  .list::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  .list-empty{ color:var(--text-muted); font-size:0.9rem; padding:var(--sp-2) 0; }
+
+  .todo-item{
+    display:flex; align-items:center; gap:var(--sp-3);
+    font-size:1rem;
+  }
+  .checkbox{
+    width:20px; height:20px; border-radius:6px;
+    border:1.5px solid var(--line-strong);
+    flex-shrink:0; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: background 0.12s ease;
+  }
+  .checkbox.checked{ background:var(--fill); border-color:var(--fill); }
+  .todo-text{ flex:1; line-height:1.3; }
+  .todo-text.done{ color:var(--text-muted); text-decoration:line-through; }
+
+  .add-row{
+    display:flex; gap:var(--sp-2); margin-top:var(--sp-4);
+    border-top:1px solid var(--line); padding-top:var(--sp-4);
+  }
+  .add-row input[type="text"]{
+    flex:1; background:var(--fill-soft); border:1px solid transparent; border-radius:var(--radius-s);
+    color:var(--text); font-size:0.88rem;
+    padding:var(--sp-2) var(--sp-3);
+  }
+  .add-row input[type="text"]:focus{ border-color:var(--line-strong); outline:none; }
+  .add-row input[type="text"]::placeholder{ color:var(--text-muted); }
+  .add-row input[type="time"]{ width:86px; font-size:0.84rem; }
+  .add-btn{
+    background:var(--fill); border:none; color:var(--bg);
+    border-radius:var(--radius-s); padding:0 var(--sp-4); cursor:pointer;
+    font-size:1rem; font-weight:600; min-width:42px;
+  }
+  .add-btn:active{ opacity:0.8; }
+
+  .nas-body{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:var(--sp-4); }
+  .nas-row{ display:flex; justify-content:space-between; align-items:center; font-size:0.92rem; }
+  .nas-label{ color:var(--text-muted); }
+  .bar-track{
+    height:6px; background:var(--fill-soft); border-radius:3px; overflow:hidden; margin-top:var(--sp-2);
+  }
+  .bar-fill{ height:100%; background:var(--fill); border-radius:3px; transition: width 0.4s ease; }
+  .nas-editrow{ display:flex; gap:var(--sp-2); align-items:center; margin-top:var(--sp-1); }
+  .nas-editrow input{
+    background:var(--fill-soft); border:1px solid transparent; border-radius:var(--radius-s); color:var(--text);
+    font-size:0.84rem; padding:var(--sp-1) var(--sp-2); width:64px;
+  }
+  .nas-editrow input:focus{ border-color:var(--line-strong); outline:none; }
+
+  .agenda-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:var(--sp-4);
+    gap:var(--sp-2);
+    flex-wrap:wrap;
+  }
+  .agenda-nav{
+    display:flex;
+    align-items:center;
+    gap:var(--sp-1);
+  }
+  .agenda-nav button{
+    background:var(--fill-soft);
+    border:none;
+    border-radius:var(--radius-s);
+    padding:var(--sp-1) var(--sp-2);
+    cursor:pointer;
+    font-size:0.8rem;
+    font-weight:600;
+    color:var(--text);
+    transition: background 0.12s ease;
+  }
+  .agenda-nav button:hover{ background:var(--line); }
+  .agenda-date-label{
+    font-weight:bold;
+    font-size:0.9rem;
+    min-width:120px;
+    text-align:center;
+    color:var(--text);
+  }
+  .agenda-list{
+    flex:1;
+    overflow-y:auto;
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:var(--sp-2);
+  }
+  .agenda-list::-webkit-scrollbar{ width:4px; }
+  .agenda-list::-webkit-scrollbar-thumb{ background:var(--line); border-radius:4px; }
+  .agenda-item{
+    display:flex;
+    gap:var(--sp-3);
+    padding:var(--sp-2) var(--sp-3);
+    border-radius:var(--radius-s);
+    background:var(--fill-soft);
+    align-items:center;
+    font-size:0.92rem;
+  }
+  .agenda-item-time{
+    font-weight:600;
+    font-variant-numeric:tabular-nums;
+    min-width:46px;
+    font-size:0.85rem;
+  }
+  .agenda-item-text{ flex:1; }
+  .agenda-item-empty{
+    color:var(--text-muted);
+    text-align:center;
+    padding:var(--sp-6) 0;
+    font-size:0.9rem;
+  }
+  .agenda-add-row{
+    display:flex;
+    gap:var(--sp-2);
+    margin-top:var(--sp-4);
+    border-top:1px solid var(--line);
+    padding-top:var(--sp-4);
+  }
+
+  .del-btn{
+    background:none; border:none; color:var(--text-muted);
+    cursor:pointer; padding:var(--sp-1); opacity:0.45;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%; transition: opacity 0.12s ease, background 0.12s ease;
+  }
+  .del-btn:active{ opacity:1; background:var(--fill-soft); }
+
+  .toggle{
+    width:44px; height:26px; border-radius:13px;
+    background:var(--line); position:relative; cursor:pointer;
+    border:none; flex-shrink:0; transition: background 0.15s ease;
+  }
+  .toggle.on{ background:var(--fill); }
+  .toggle::after{
+    content:''; position:absolute; top:3px; left:3px;
+    width:20px; height:20px; border-radius:50%; background:var(--bg);
+    box-shadow:0 1px 3px rgba(0,0,0,0.25);
+    transition: left 0.15s ease;
+  }
+  .toggle.on::after{ left:21px; }
+  .toggle:active::after{ width:22px; }
+
+  .day-chip{
+    flex:1; padding:var(--sp-2) 0; border-radius:var(--radius-s); border:1px solid var(--line);
+    background:var(--card); color:var(--text); font-size:0.85rem; cursor:pointer;
+  }
+  .day-chip.active{ background:var(--fill); color:var(--bg); border-color:var(--fill); }
+
+  #faceOverlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:20;
+    background:var(--overlay-bg);
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:2rem;
+    opacity:0;
+    transform:scale(0.95) translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events:none;
+  }
+  #faceOverlay.open{
+    display:flex;
+    opacity:1;
+    transform:scale(1) translateY(0);
+    pointer-events:auto;
+  }
+  #faceOverlay.closing{
+    opacity:0;
+    transform:scale(0.95) translateY(20px);
+    pointer-events:none;
+  }
+
+  #faceScanning{
+    display:none;
+    overflow:hidden;
+    width:280px;
+  }
+  #faceStrip{
+    display:flex;
+    gap:1.4rem;
+    width:max-content;
+    animation: scanMove 0.9s linear infinite;
+  }
+  @keyframes scanMove{
+    0%{ transform:translateX(0); }
+    100%{ transform:translateX(-50%); }
+  }
+
+  #faceReveal{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap:1rem;
+    cursor:pointer;
+  }
+  #faceRevealImg{
+    display:none;
+    width:220px;
+    height:220px;
+    border-radius:50%;
+    object-fit:cover;
+    box-shadow:var(--shadow-float);
+  }
+  #faceRevealIcon{
+    display:none;
+    width:96px;
+    height:96px;
+    border-radius:50%;
+    border:2px dashed var(--line-strong);
+    align-items:center;
+    justify-content:center;
+    font-size:3rem;
+    font-weight:bold;
+    color:var(--text-muted);
+  }
+
+  #themeToggle{
+    position:fixed;
+    top:20px;
+    right:70px;
+    z-index:10;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--fill-soft);
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.2rem;
+    transition: background 0.2s;
+    color:var(--text);
+  }
+  #themeToggle:hover{ background:var(--line); }
+
+  @media (max-width: 700px){
+    html,body{ overflow-y:auto; overflow-x:hidden; height:auto; min-height:100%; }
+    .app{
+      display:flex;
+      flex-direction:column;
+      width:100%; height:auto; min-height:100vh;
+      gap:1px;
+    }
+    .hero{
+      padding: var(--sp-6) var(--sp-5);
+      gap:var(--sp-4);
+    }
+    .clock{ font-size:3.6rem; }
+    .greeting{ font-size:0.8rem; }
+    .date{ font-size:0.95rem; }
+    .card-todo, .card-nas, .agenda-expanded{
+      padding: var(--sp-4) var(--sp-5);
+      min-height:200px;
+    }
+    #settingsBtn{ top:14px !important; right:14px !important; width:34px !important; height:34px !important; }
+    #themeToggle{ top:14px !important; right:56px !important; width:34px !important; height:34px !important; font-size:1rem; }
+    #faceBtn{ bottom:18px !important; right:18px !important; width:52px !important; height:52px !important; }
+    #settingsPanel{ top:58px !important; right:14px !important; width:calc(100vw - 28px) !important; max-width:340px; }
+    .agenda-date-label{ font-size:0.8rem; min-width:80px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PULSANTE FOTO CAMERA -->
+<button id="faceBtn" style="position:fixed; bottom:24px; right:24px; z-index:10; width:60px; height:60px; border-radius:50%; border:none; background:var(--fill); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-float); transition: transform 0.2s; color:var(--bg);">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>
+</button>
+<input type="file" id="faceInput" accept="image/*" capture="user" style="display:none;">
+
+<!-- PULSANTE TEMA -->
+<button id="themeToggle" title="Alterna tema chiaro/scuro">🌙</button>
+
+<!-- OVERLAY FOTOCAMERA -->
+<div id="faceOverlay" class="">
+  <div id="faceScanning" style="display:none; overflow:hidden; width:280px;">
+    <div id="faceStrip" style="display:flex; gap:1.4rem; width:max-content;"></div>
+  </div>
+  <div id="faceReveal" style="display:none; flex-direction:column; align-items:center; gap:1rem; cursor:pointer;">
+    <img id="faceRevealImg" src="" style="display:none; width:220px; height:220px; border-radius:50%; object-fit:cover; box-shadow:var(--shadow-float);">
+    <div id="faceRevealIcon" style="display:none; width:96px; height:96px; border-radius:50%; border:2px dashed var(--line-strong); align-items:center; justify-content:center; font-size:3rem; font-weight:bold; color:var(--text-muted);"></div>
+    <div id="faceRevealName" style="font-size:1.4rem; font-weight:bold;"></div>
+    <div id="faceRevealSub" style="font-size:0.85rem; color:var(--text-muted);">tocca per continuare</div>
+  </div>
+  <button id="faceClose" style="position:absolute; top:20px; left:20px; background:none; border:none; cursor:pointer; display:flex; color:var(--text);">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+</div>
+
+<!-- KIOSK OVERLAY -->
+<div id="kioskOverlay" style="display:none; position:fixed; inset:0; z-index:21; background:#000;">
+  <button id="kioskClose" style="position:absolute; top:16px; left:16px; z-index:22; background:#fff; border:none; border-radius:50%; width:38px; height:38px; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#111111" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <iframe id="kioskFrame" src="" style="width:100%; height:100%; border:none;"></iframe>
+</div>
+
+<!-- IMPOSTAZIONI -->
+<button id="settingsBtn" style="position:fixed; top:20px; right:20px; z-index:10; width:38px; height:38px; border-radius:50%; border:none; background:var(--fill-soft); cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text);">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+</button>
+
+<!-- PANNELLO IMPOSTAZIONI -->
+<div id="settingsPanel" style="display:none; position:fixed; top:66px; right:20px; z-index:11; background:var(--card); border-radius:var(--radius-m); box-shadow:var(--shadow-float); padding:var(--sp-5); width:310px; font-size:0.85rem; color:var(--text);">
+  <div style="font-weight:bold; margin-bottom:var(--sp-4); font-size:0.78rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted);">Sorgenti dati</div>
+  <label style="display:block; color:var(--text-muted); margin-bottom:var(--sp-1); font-size:0.78rem;">URL Agenda (JSON, dal bridge)</label>
+  <input type="text" id="agendaUrlInput" placeholder="http://IP-NAS:8420/agenda" style="width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); margin-bottom:var(--sp-3); background:var(--fill-soft); color:var(--text);">
+  <label style="display:block; color:var(--text-muted); margin-bottom:var(--sp-1); font-size:0.78rem;">URL NAS (JSON, dal bridge)</label>
+  <input type="text" id="nasUrlInput" placeholder="http://IP-NAS:8420/nas" style="width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); margin-bottom:var(--sp-3); background:var(--fill-soft); color:var(--text);">
+  <label style="display:block; color:var(--text-muted); margin-bottom:var(--sp-1); font-size:0.78rem;">URL Identificazione (bridge /identify)</label>
+  <input type="text" id="identifyUrlInput" placeholder="http://IP-NAS:8420/identify" style="width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); margin-bottom:var(--sp-3); background:var(--fill-soft); color:var(--text);">
+  <label style="display:block; color:var(--text-muted); margin-bottom:var(--sp-1); font-size:0.78rem;">URL Kiosk (immich-kiosk)</label>
+  <input type="text" id="kioskUrlInput" placeholder="http://IP-NAS:3000" style="width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); margin-bottom:var(--sp-3); background:var(--fill-soft); color:var(--text);">
+  <label style="display:block; color:var(--text-muted); margin-bottom:var(--sp-1); font-size:0.78rem;">URL Sleep Stats (bridge /api/sleep/stats)</label>
+  <input type="text" id="sleepStatsUrlInput" placeholder="http://IP-NAS:8420/api/sleep/stats" style="width:100%; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); margin-bottom:var(--sp-4); background:var(--fill-soft); color:var(--text);">
+  <button id="settingsSave" style="width:100%; padding:var(--sp-3); background:var(--fill); color:var(--bg); border:none; border-radius:var(--radius-s); cursor:pointer; font-weight:bold; font-size:0.9rem;">Salva</button>
+  <div style="color:var(--text-muted); margin-top:var(--sp-3); font-size:0.74rem; line-height:1.4;">Lascia vuoto per usare l'inserimento manuale.</div>
+</div>
+
+<!-- MODALE SVEGLIE -->
+<div id="alarmsOverlay" style="display:none; position:fixed; inset:0; z-index:25; background:rgba(17,17,17,0.4); align-items:center; justify-content:center;">
+  <div style="background:var(--card); border-radius:var(--radius-l); box-shadow:var(--shadow-float); width:min(520px, 92vw); max-height:86vh; display:flex; flex-direction:column; overflow:hidden; color:var(--text);">
+    <div id="alarmsListView" style="display:flex; flex-direction:column; min-height:0;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:var(--sp-5) var(--sp-5) var(--sp-4);">
+        <div style="font-weight:bold; font-size:1.1rem;">Sveglie</div>
+        <button id="alarmsClose" style="background:var(--fill-soft); border:none; border-radius:50%; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:var(--text);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div id="alarmsListBody" style="overflow-y:auto; padding:0 var(--sp-5); display:flex; flex-direction:column; gap:var(--sp-2); flex:1;"></div>
+      <div style="padding:var(--sp-4) var(--sp-5);">
+        <button id="alarmAddBtn" style="width:100%; padding:var(--sp-3); background:var(--fill); color:var(--bg); border:none; border-radius:var(--radius-s); cursor:pointer; font-weight:bold;">+ Nuova sveglia</button>
+      </div>
+      <div style="border-top:1px solid var(--line); padding:var(--sp-4) var(--sp-5) var(--sp-5);">
+        <div style="font-size:0.78rem; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:var(--sp-3);">Suoni per dormire</div>
+        <div style="display:flex; gap:var(--sp-2); align-items:center;">
+          <select id="sleepSoundSelect" style="flex:1; padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); background:var(--fill-soft); font-size:0.88rem; color:var(--text);">
+            <option value="bianco">Rumore bianco</option>
+            <option value="rosa">Rumore rosa</option>
+            <option value="pioggia">Pioggia (sintetica)</option>
+          </select>
+          <select id="sleepTimerSelect" style="padding:var(--sp-2) var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); background:var(--fill-soft); font-size:0.88rem; color:var(--text);">
+            <option value="15">15 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="60">60 min</option>
+            <option value="0">continuo</option>
+          </select>
+          <button id="sleepSoundToggle" style="width:44px; height:44px; border-radius:50%; border:none; background:var(--fill); color:var(--bg); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg id="sleepSoundIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          </button>
+        </div>
+        <div id="sleepSoundStatus" style="font-size:0.76rem; color:var(--text-muted); margin-top:var(--sp-2);">Nota: sono suoni generati dal browser, si fermano se chiudi la pagina.</div>
+      </div>
+      <div style="border-top:1px solid var(--line); padding:var(--sp-4) var(--sp-5) var(--sp-5);">
+        <div style="font-size:0.78rem; font-weight:bold; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-muted); margin-bottom:var(--sp-3);">Monitoraggio sonno</div>
+        <button id="sleepToggleBtn" style="width:100%; padding:var(--sp-3); background:var(--fill-soft); border:none; border-radius:var(--radius-s); cursor:pointer; font-weight:bold; font-size:0.92rem; display:flex; align-items:center; justify-content:center; gap:var(--sp-2); color:var(--text);">
+          <svg id="sleepToggleIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <span id="sleepToggleLabel">Buonanotte — avvia monitoraggio sonno</span>
+        </button>
+        <div id="sleepReportSummary" style="font-size:0.76rem; color:var(--text-muted); margin-top:var(--sp-2);"></div>
+      </div>
+    </div>
+    <div id="alarmEditorView" style="display:none; flex-direction:column; padding:var(--sp-5); gap:var(--sp-4); overflow-y:auto;">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <button id="alarmEditorBack" style="background:none; border:none; cursor:pointer; display:flex; align-items:center; gap:var(--sp-1); color:var(--text-muted); font-size:0.9rem;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+          Indietro
+        </button>
+        <button id="alarmDeleteBtn" style="display:none; background:none; border:none; color:var(--alert); font-size:0.88rem; cursor:pointer;">Elimina</button>
+      </div>
+      <input type="time" id="editTime" style="font-size:2.6rem; font-weight:bold; border:none; background:none; text-align:center; width:100%; font-variant-numeric:tabular-nums; color:var(--text);">
+      <input type="text" id="editLabel" placeholder="Etichetta (es. Sveglia lavoro)" style="padding:var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); font-size:0.95rem; background:var(--fill-soft); color:var(--text);">
+      <div>
+        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:var(--sp-2);">Ripeti</div>
+        <div id="editDays" style="display:flex; gap:var(--sp-2); justify-content:space-between;"></div>
+      </div>
+      <div>
+        <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:var(--sp-2);">Suono</div>
+        <select id="editSound" style="width:100%; padding:var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); background:var(--fill-soft); font-size:0.92rem; color:var(--text);">
+          <option value="classico">Classico (doppio bip)</option>
+          <option value="dolce">Dolce (tono morbido crescente)</option>
+          <option value="intenso">Intenso (bip rapidi)</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:var(--sp-4); align-items:center;">
+        <div style="flex:1;">
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-bottom:var(--sp-2);">Posticipa di</div>
+          <select id="editSnooze" style="width:100%; padding:var(--sp-3); border:1px solid var(--line); border-radius:var(--radius-s); background:var(--fill-soft); font-size:0.92rem; color:var(--text);">
+            <option value="5">5 min</option>
+            <option value="9" selected>9 min</option>
+            <option value="15">15 min</option>
+          </select>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:space-between; padding-top:var(--sp-6);">
+          <span style="font-size:0.85rem;">Volume crescente</span>
+          <button class="toggle" id="editRamp"></button>
+        </div>
+      </div>
+      <button id="alarmSaveBtn" style="width:100%; padding:var(--sp-3); background:var(--fill); color:var(--bg); border:none; border-radius:var(--radius-s); cursor:pointer; font-weight:bold; margin-top:var(--sp-2);">Salva sveglia</button>
+    </div>
+  </div>
+</div>
+
+<!-- OVERLAY SVEGLIA CHE SUONA -->
+<div id="alarmFiringOverlay" style="display:none; position:fixed; inset:0; z-index:30; background:var(--card); flex-direction:column; align-items:center; justify-content:center; gap:var(--sp-5); text-align:center; padding:var(--sp-6); color:var(--text);">
+  <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M5 3 2 6"/><path d="M22 6l-3-3"/></svg>
+  <div id="firingTime" style="font-size:4rem; font-weight:bold; font-variant-numeric:tabular-nums;">--:--</div>
+  <div id="firingLabel" style="font-size:1.2rem; color:var(--text-muted);">Sveglia</div>
+  <div style="display:flex; gap:var(--sp-4); margin-top:var(--sp-5); width:100%; max-width:360px;">
+    <button id="firingSnooze" style="flex:1; padding:var(--sp-4); background:var(--fill-soft); border:none; border-radius:var(--radius-m); font-weight:bold; font-size:1rem; cursor:pointer; color:var(--text);">Posticipa</button>
+    <button id="firingDismiss" style="flex:1; padding:var(--sp-4); background:var(--fill); color:var(--bg); border:none; border-radius:var(--radius-m); font-weight:bold; font-size:1rem; cursor:pointer;">Spegni</button>
+  </div>
+</div>
+
+<!-- LAYOUT PRINCIPALE -->
+<div class="app">
+
+  <div class="hero">
+    <div class="greeting" id="greeting">Buongiorno</div>
+    <div class="clock" id="clock">--:--</div>
+    <div class="date" id="date">--</div>
+    <div class="alarm-row" id="alarmSummaryRow">
+      <div class="alarm-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M5 3 2 6"/><path d="M22 6l-3-3"/></svg>
+      </div>
+      <div class="alarm-info">
+        <div class="alarm-time" id="alarmSummaryTime">Nessuna sveglia</div>
+        <div class="alarm-label" id="alarmSummaryLabel">Tocca per aggiungerne una</div>
+      </div>
+      <div style="color:var(--text-muted);">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="card-todo">
+    <div class="card-title">Da fare</div>
+    <ul class="list" id="todoList"></ul>
+    <div class="add-row">
+      <input type="text" id="todoText" placeholder="Nuovo task...">
+      <button class="add-btn" id="todoAdd">+</button>
+    </div>
+  </div>
+
+  <div class="card-nas">
+    <div class="card-title">
+      <span><span class="status-dot" id="nasDot"></span>NAS</span>
+    </div>
+    <div class="nas-body">
+      <div class="nas-row">
+        <span class="nas-label" id="nasName">Il mio NAS</span>
+        <button class="toggle on" id="nasToggle"></button>
+      </div>
+      <div>
+        <div class="nas-row"><span class="nas-label">Spazio usato</span><span id="nasSpaceLabel">0 / 0 GB</span></div>
+        <div class="bar-track"><div class="bar-fill" id="nasBar" style="width:0%"></div></div>
+      </div>
+      <div class="nas-editrow">
+        <input type="number" id="nasUsed" step="0.1" placeholder="usati">
+        <span style="color:var(--text-muted); font-size:0.8rem;">/</span>
+        <input type="number" id="nasTotal" step="0.1" placeholder="totali">
+        <span style="color:var(--text-muted); font-size:0.75rem;">GB</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="agenda-expanded">
+    <div class="card-title">Agenda</div>
+    <div class="agenda-header">
+      <div class="agenda-nav">
+        <button id="agendaPrevDay">◀</button>
+        <button id="agendaTodayBtn">Oggi</button>
+        <button id="agendaNextDay">▶</button>
+      </div>
+      <div class="agenda-date-label" id="agendaDateLabel">--</div>
+      <div class="agenda-nav">
+        <button id="agendaPrevWeek">◀◀</button>
+        <button id="agendaNextWeek">▶▶</button>
+      </div>
+    </div>
+    <ul class="agenda-list" id="agendaList"></ul>
+    <div class="agenda-add-row">
+      <input type="time" id="agendaTime" value="09:00">
+      <input type="text" id="agendaText" placeholder="Nuovo evento...">
+      <button class="add-btn" id="agendaAdd">+</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================================================================
+// TEMA CHIARO/SCURO
+// ===================================================================
+(function initTheme(){
+  const saved = localStorage.getItem('dashboard-theme');
+  if(saved === 'dark'){
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeToggle').textContent = '🌙';
+  }
+})();
+
+document.getElementById('themeToggle').addEventListener('click', function(){
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if(isDark){
+    document.documentElement.removeAttribute('data-theme');
+    this.textContent = '🌙';
+    localStorage.setItem('dashboard-theme', 'light');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    this.textContent = '☀️';
+    localStorage.setItem('dashboard-theme', 'dark');
+  }
+});
+
+// ===================================================================
+// OROLOGIO
+// ===================================================================
+const GIORNI = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+const MESI = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  document.getElementById('date').textContent = GIORNI[now.getDay()] + ' ' + now.getDate() + ' ' + MESI[now.getMonth()];
+  const h = now.getHours();
+  let g = 'Buonanotte';
+  if(h>=5 && h<12) g='Buongiorno';
+  else if(h>=12 && h<18) g='Buon pomeriggio';
+  else if(h>=18 && h<23) g='Buonasera';
+  document.getElementById('greeting').textContent = g;
+  checkAlarms(now);
+}
+
+// ===================================================================
+// SVEGLIE
+// ===================================================================
+let alarms = [];
+let editingAlarmId = null;
+let firedThisMinute = {};
+let firingAlarm = null;
+let snoozeUntil = {};
+const DAY_LABELS = ['D','L','M','M','G','V','S'];
+
+async function loadAlarms(){
+  alarms = await storeGet('alarms', []);
+  renderAlarmSummary();
+}
+function saveAlarms(){ storeSet('alarms', alarms); }
+
+function renderAlarmSummary(){
+  const timeEl = document.getElementById('alarmSummaryTime');
+  const lblEl = document.getElementById('alarmSummaryLabel');
+  const enabled = alarms.filter(a=>a.enabled);
+  if(enabled.length===0){
+    timeEl.textContent = 'Nessuna sveglia';
+    timeEl.classList.add('off');
+    lblEl.textContent = 'Tocca per aggiungerne una';
+    return;
+  }
+  enabled.sort((a,b)=> a.time.localeCompare(b.time));
+  timeEl.textContent = enabled[0].time;
+  timeEl.classList.remove('off');
+  const extra = enabled.length>1 ? ` (+${enabled.length-1})` : '';
+  lblEl.textContent = (enabled[0].label || 'Sveglia') + extra;
+}
+
+function renderAlarmsList(){
+  const body = document.getElementById('alarmsListBody');
+  if(alarms.length===0){
+    body.innerHTML = '<div class="list-empty">Nessuna sveglia impostata</div>';
+    return;
+  }
+  const sorted = [...alarms].sort((a,b)=> a.time.localeCompare(b.time));
+  body.innerHTML = sorted.map(a=>{
+    const daysTxt = a.days && a.days.length ? a.days.slice().sort().map(d=>DAY_LABELS[d]).join(' ') : 'una tantum';
+    return `<div class="alarm-list-item" data-id="${a.id}" style="display:flex; align-items:center; gap:var(--sp-3); padding:var(--sp-3) 0; border-bottom:1px solid var(--line); cursor:pointer;">
+      <div style="flex:1; ${a.enabled?'':'opacity:0.4;'}">
+        <div style="font-size:1.4rem; font-weight:600; font-variant-numeric:tabular-nums;">${a.time}</div>
+        <div style="font-size:0.78rem; color:var(--text-muted);">${a.label || 'Sveglia'} · ${daysTxt}</div>
+      </div>
+      <button class="toggle ${a.enabled?'on':''}" data-toggle="${a.id}"></button>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('.alarm-list-item').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      if(e.target.closest('[data-toggle]')) return;
+      openAlarmEditor(el.dataset.id);
+    });
+  });
+  body.querySelectorAll('[data-toggle]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const a = alarms.find(x=>x.id===btn.dataset.toggle);
+      a.enabled = !a.enabled;
+      saveAlarms();
+      renderAlarmsList();
+      renderAlarmSummary();
+    });
+  });
+}
+
+function openAlarmsOverlay(){
+  document.getElementById('alarmsOverlay').style.display = 'flex';
+  showAlarmsListView();
+}
+function closeAlarmsOverlay(){
+  document.getElementById('alarmsOverlay').style.display = 'none';
+}
+function showAlarmsListView(){
+  document.getElementById('alarmsListView').style.display = 'flex';
+  document.getElementById('alarmEditorView').style.display = 'none';
+  renderAlarmsList();
+}
+document.getElementById('alarmSummaryRow').addEventListener('click', openAlarmsOverlay);
+document.getElementById('alarmsClose').addEventListener('click', closeAlarmsOverlay);
+document.getElementById('alarmEditorBack').addEventListener('click', showAlarmsListView);
+document.getElementById('alarmAddBtn').addEventListener('click', ()=> openAlarmEditor(null));
+
+function openAlarmEditor(id){
+  editingAlarmId = id;
+  const a = id ? alarms.find(x=>x.id===id) : {
+    time:'07:00', label:'', enabled:true, days:[1,2,3,4,5], sound:'classico', snooze:9, ramp:true
+  };
+  document.getElementById('editTime').value = a.time;
+  document.getElementById('editLabel').value = a.label || '';
+  document.getElementById('editSound').value = a.sound || 'classico';
+  document.getElementById('editSnooze').value = String(a.snooze || 9);
+  document.getElementById('editRamp').classList.toggle('on', a.ramp !== false);
+  document.getElementById('alarmDeleteBtn').style.display = id ? 'block' : 'none';
+
+  const daysWrap = document.getElementById('editDays');
+  daysWrap.innerHTML = DAY_LABELS.map((lbl, i)=>
+    `<button type="button" class="day-chip ${(a.days||[]).includes(i)?'active':''}" data-day="${i}">${lbl}</button>`
+  ).join('');
+  daysWrap.querySelectorAll('.day-chip').forEach(btn=>{
+    btn.addEventListener('click', ()=> btn.classList.toggle('active'));
+  });
+
+  document.getElementById('alarmsListView').style.display = 'none';
+  document.getElementById('alarmEditorView').style.display = 'flex';
+}
+document.getElementById('editRamp').addEventListener('click', function(){ this.classList.toggle('on'); });
+
+document.getElementById('alarmSaveBtn').addEventListener('click', ()=>{
+  const selectedDays = [...document.querySelectorAll('#editDays .day-chip.active')].map(b => parseInt(b.dataset.day));
+  const data = {
+    time: document.getElementById('editTime').value || '07:00',
+    label: document.getElementById('editLabel').value.trim(),
+    sound: document.getElementById('editSound').value,
+    snooze: parseInt(document.getElementById('editSnooze').value),
+    ramp: document.getElementById('editRamp').classList.contains('on'),
+    days: selectedDays,
+  };
+  if(editingAlarmId){
+    const a = alarms.find(x=>x.id===editingAlarmId);
+    Object.assign(a, data);
+  } else {
+    alarms.push({ id: 'al'+Date.now(), enabled:true, ...data });
+  }
+  saveAlarms();
+  showAlarmsListView();
+  renderAlarmSummary();
+});
+document.getElementById('alarmDeleteBtn').addEventListener('click', ()=>{
+  alarms = alarms.filter(x=>x.id !== editingAlarmId);
+  saveAlarms();
+  showAlarmsListView();
+  renderAlarmSummary();
+});
+
+function checkAlarms(now){
+  const current = pad(now.getHours())+':'+pad(now.getMinutes());
+  const dow = now.getDay();
+  const dateKey = now.toDateString();
+  alarms.forEach(a=>{
+    if(!a.enabled) return;
+    const isRecurring = a.days && a.days.length > 0;
+    const matchesToday = isRecurring ? a.days.includes(dow) : true;
+    const fireKey = a.id + '_' + dateKey + '_' + current;
+    if(matchesToday && a.time === current && !firedThisMinute[fireKey]){
+      firedThisMinute[fireKey] = true;
+      triggerAlarm(a);
+      if(!isRecurring){ a.enabled = false; saveAlarms(); renderAlarmSummary(); }
+    }
+    if(snoozeUntil[a.id] === current && !firedThisMinute[fireKey+'_snooze']){
+      firedThisMinute[fireKey+'_snooze'] = true;
+      delete snoozeUntil[a.id];
+      triggerAlarm(a);
+    }
+  });
+}
+
+function triggerAlarm(a){
+  firingAlarm = a;
+  document.getElementById('firingTime').textContent = a.time;
+  document.getElementById('firingLabel').textContent = a.label || 'Sveglia';
+  document.getElementById('alarmFiringOverlay').style.display = 'flex';
+  startAlarmSound(a.sound || 'classico', a.ramp !== false);
+}
+document.getElementById('firingDismiss').addEventListener('click', ()=>{
+  stopAlarmSound();
+  document.getElementById('alarmFiringOverlay').style.display = 'none';
+  firingAlarm = null;
+});
+document.getElementById('firingSnooze').addEventListener('click', ()=>{
+  stopAlarmSound();
+  document.getElementById('alarmFiringOverlay').style.display = 'none';
+  if(firingAlarm){
+    const mins = firingAlarm.snooze || 9;
+    const t = new Date(Date.now() + mins*60000);
+    snoozeUntil[firingAlarm.id] = pad(t.getHours())+':'+pad(t.getMinutes());
+  }
+  firingAlarm = null;
+});
+
+// ===================================================================
+// AUDIO
+// ===================================================================
+let audioCtx = null;
+let alarmAudioNodes = null;
+function ensureAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function startAlarmSound(type, ramp){
+  stopAlarmSound();
+  const ctx = ensureAudioCtx();
+  const gain = ctx.createGain();
+  gain.gain.value = ramp ? 0.03 : 0.35;
+  gain.connect(ctx.destination);
+  if(ramp){
+    gain.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 25);
+  }
+  const osc = ctx.createOscillator();
+  osc.type = type === 'dolce' ? 'sine' : (type === 'intenso' ? 'square' : 'triangle');
+  osc.frequency.value = type === 'intenso' ? 920 : (type === 'dolce' ? 520 : 700);
+  osc.connect(gain);
+  osc.start();
+  const beepMs = type === 'intenso' ? 220 : (type === 'dolce' ? 900 : 450);
+  let on = true;
+  const beepTimer = setInterval(()=>{
+    on = !on;
+    gain.gain.setTargetAtTime(on ? Math.max(gain.gain.value, 0.2) : 0.01, ctx.currentTime, 0.05);
+  }, beepMs);
+  alarmAudioNodes = { osc, gain, beepTimer };
+}
+function stopAlarmSound(){
+  if(!alarmAudioNodes) return;
+  try{
+    alarmAudioNodes.osc.stop();
+    clearInterval(alarmAudioNodes.beepTimer);
+  }catch(e){}
+  alarmAudioNodes = null;
+}
+
+// ===================================================================
+// STORAGE
+// ===================================================================
+const STORE_PREFIX = 'dashboard:';
+async function storeGet(key, fallback){
+  try{
+    const raw = localStorage.getItem(STORE_PREFIX + key);
+    return raw !== null ? JSON.parse(raw) : fallback;
+  }catch(e){ console.error('storage read error', e); return fallback; }
+}
+async function storeSet(key, value){
+  try{ localStorage.setItem(STORE_PREFIX + key, JSON.stringify(value)); }
+  catch(e){ console.error('storage write error', e); }
+}
+
+// ===================================================================
+// AGENDA
+// ===================================================================
+let agenda = [];
+let agendaViewDate = new Date();
+agendaViewDate.setHours(0,0,0,0);
+
+function formatDateKey(date){
+  return date.getFullYear() + '-' + pad(date.getMonth()+1) + '-' + pad(date.getDate());
+}
+
+async function loadAgenda(){
+  agenda = await storeGet('agenda', []);
+  renderAgenda();
+}
+
+function getEventsForDate(date){
+  const key = formatDateKey(date);
+  return agenda.filter(ev => ev.date === key);
+}
+
+function renderAgenda(){
+  const ul = document.getElementById('agendaList');
+  const dateLabel = document.getElementById('agendaDateLabel');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const isToday = agendaViewDate.getTime() === today.getTime();
+  const label = (isToday ? 'Oggi, ' : '') + GIORNI[agendaViewDate.getDay()] + ' ' + agendaViewDate.getDate() + ' ' + MESI[agendaViewDate.getMonth()] + ' ' + agendaViewDate.getFullYear();
+  dateLabel.textContent = label;
+
+  const events = getEventsForDate(agendaViewDate);
+  ul.innerHTML = '';
+  if(events.length === 0){
+    ul.innerHTML = '<li class="agenda-item-empty">Nessun evento per questa data</li>';
+    return;
+  }
+  events.sort((a,b) => a.time.localeCompare(b.time));
+  events.forEach(ev => {
+    const li = document.createElement('li');
+    li.className = 'agenda-item';
+    li.innerHTML = `<span class="agenda-item-time">${ev.time}</span><span class="agenda-item-text">${ev.text}</span><button class="del-btn" data-id="${ev.id}">${svgX}</button>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.del-btn').forEach(btn => {
+    btn.addEventListener('click', ()=>{
+      agenda = agenda.filter(e => e.id !== btn.dataset.id);
+      storeSet('agenda', agenda);
+      renderAgenda();
+    });
+  });
+  document.getElementById('agendaTodayBtn').style.display = isToday ? 'none' : 'inline-block';
+}
+
+function goToDate(date){
+  agendaViewDate = new Date(date);
+  agendaViewDate.setHours(0,0,0,0);
+  renderAgenda();
+}
+
+document.getElementById('agendaPrevDay').addEventListener('click', ()=>{
+  const d = new Date(agendaViewDate); d.setDate(d.getDate() - 1); goToDate(d);
+});
+document.getElementById('agendaNextDay').addEventListener('click', ()=>{
+  const d = new Date(agendaViewDate); d.setDate(d.getDate() + 1); goToDate(d);
+});
+document.getElementById('agendaTodayBtn').addEventListener('click', ()=>{
+  const now = new Date(); now.setHours(0,0,0,0); goToDate(now);
+});
+document.getElementById('agendaPrevWeek').addEventListener('click', ()=>{
+  const d = new Date(agendaViewDate); d.setDate(d.getDate() - 7); goToDate(d);
+});
+document.getElementById('agendaNextWeek').addEventListener('click', ()=>{
+  const d = new Date(agendaViewDate); d.setDate(d.getDate() + 7); goToDate(d);
+});
+
+document.getElementById('agendaAdd').addEventListener('click', ()=>{
+  const t = document.getElementById('agendaText');
+  const time = document.getElementById('agendaTime').value;
+  if(!t.value.trim()) return;
+  const dateKey = formatDateKey(agendaViewDate);
+  agenda.push({ id: Date.now().toString(), date: dateKey, time, text: t.value.trim() });
+  storeSet('agenda', agenda);
+  t.value='';
+  renderAgenda();
+});
+
+// ===================================================================
+// TODO
+// ===================================================================
+let todos = [];
+async function loadTodos(){
+  todos = await storeGet('todos', []);
+  renderTodos();
+}
+const svgX = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const svgCheck = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l6 6L20 6"/></svg>';
+
+function renderTodos(){
+  const ul = document.getElementById('todoList');
+  ul.innerHTML = '';
+  if(todos.length===0){
+    ul.innerHTML = '<li class="list-empty">Nessun task</li>';
+    return;
+  }
+  todos.forEach(td=>{
+    const li = document.createElement('li');
+    li.className = 'todo-item';
+    li.innerHTML = `<div class="checkbox ${td.done?'checked':''}" data-id="${td.id}">${td.done?svgCheck:''}</div><span class="todo-text ${td.done?'done':''}">${td.text}</span><button class="del-btn" data-del="${td.id}">${svgX}</button>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.checkbox').forEach(cb=>{
+    cb.addEventListener('click', ()=>{
+      const item = todos.find(t=>t.id===cb.dataset.id);
+      item.done = !item.done;
+      storeSet('todos', todos);
+      renderTodos();
+    });
+  });
+  ul.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      todos = todos.filter(t=>t.id !== btn.dataset.del);
+      storeSet('todos', todos);
+      renderTodos();
+    });
+  });
+}
+document.getElementById('todoAdd').addEventListener('click', ()=>{
+  const t = document.getElementById('todoText');
+  if(!t.value.trim()) return;
+  todos.push({ id: Date.now().toString(), text:t.value.trim(), done:false });
+  storeSet('todos', todos);
+  t.value='';
+  renderTodos();
+});
+
+// ===================================================================
+// NAS
+// ===================================================================
+let nas = { name:'Il mio NAS', online:true, used:0, total:0 };
+async function loadNas(){
+  nas = await storeGet('nas', nas);
+  document.getElementById('nasUsed').value = nas.used;
+  document.getElementById('nasTotal').value = nas.total;
+  renderNas();
+}
+function renderNas(){
+  document.getElementById('nasName').textContent = nas.name;
+  document.getElementById('nasDot').classList.toggle('off', !nas.online);
+  document.getElementById('nasToggle').classList.toggle('on', nas.online);
+  document.getElementById('nasSpaceLabel').textContent = `${nas.used} / ${nas.total} GB`;
+  const pct = nas.total>0 ? Math.min(100,(nas.used/nas.total)*100) : 0;
+  document.getElementById('nasBar').style.width = pct+'%';
+}
+document.getElementById('nasToggle').addEventListener('click', ()=>{
+  nas.online = !nas.online;
+  storeSet('nas', nas);
+  renderNas();
+});
+document.getElementById('nasUsed').addEventListener('change', e=>{
+  nas.used = parseFloat(e.target.value)||0;
+  storeSet('nas', nas);
+  renderNas();
+});
+document.getElementById('nasTotal').addEventListener('change', e=>{
+  nas.total = parseFloat(e.target.value)||0;
+  storeSet('nas', nas);
+  renderNas();
+});
+
+// ===================================================================
+// SETTINGS
+// ===================================================================
+let settings = { agendaUrl:'', nasUrl:'', identifyUrl:'', kioskUrl:'', sleepStatsUrl:'' };
+async function loadSettings(){
+  settings = await storeGet('settings', settings);
+  document.getElementById('agendaUrlInput').value = settings.agendaUrl;
+  document.getElementById('nasUrlInput').value = settings.nasUrl;
+  document.getElementById('identifyUrlInput').value = settings.identifyUrl || '';
+  document.getElementById('kioskUrlInput').value = settings.kioskUrl || '';
+  document.getElementById('sleepStatsUrlInput').value = settings.sleepStatsUrl || '';
+  applySettingsMode();
+}
+function applySettingsMode(){
+  document.querySelector('.agenda-add-row').style.display = settings.agendaUrl ? 'none' : 'flex';
+  document.querySelector('.nas-editrow').style.display = settings.nasUrl ? 'none' : 'flex';
+  document.getElementById('nasToggle').style.display = settings.nasUrl ? 'none' : 'block';
+  document.getElementById('faceBtn').style.display = 'flex';
+}
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  const p = document.getElementById('settingsPanel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+});
+document.getElementById('settingsSave').addEventListener('click', ()=>{
+  settings.agendaUrl = document.getElementById('agendaUrlInput').value.trim();
+  settings.nasUrl = document.getElementById('nasUrlInput').value.trim();
+  settings.identifyUrl = document.getElementById('identifyUrlInput').value.trim();
+  settings.kioskUrl = document.getElementById('kioskUrlInput').value.trim();
+  settings.sleepStatsUrl = document.getElementById('sleepStatsUrlInput').value.trim();
+  storeSet('settings', settings);
+  applySettingsMode();
+  document.getElementById('settingsPanel').style.display = 'none';
+  fetchExternalAgenda();
+  fetchExternalNas();
+});
+
+async function fetchExternalAgenda(){
+  if(!settings.agendaUrl) return;
+  try{
+    const res = await fetch(settings.agendaUrl);
+    const data = await res.json();
+    agenda = data.map((ev,i)=>({ 
+      id:'ext'+i, 
+      date: ev.date || formatDateKey(new Date()),
+      time:ev.time||'', 
+      text:ev.text||ev.summary||'' 
+    }));
+    renderAgenda();
+  }catch(e){ console.error('errore agenda esterna', e); }
+}
+async function fetchExternalNas(){
+  if(!settings.nasUrl) return;
+  try{
+    const res = await fetch(settings.nasUrl);
+    const data = await res.json();
+    nas.online = !!data.online;
+    nas.used = data.used_gb ?? data.used_tb ?? nas.used;
+    nas.total = data.total_gb ?? data.total_tb ?? nas.total;
+    renderNas();
+  }catch(e){
+    nas.online = false;
+    renderNas();
+    console.error('errore NAS esterno', e);
+  }
+}
+
+// ===================================================================
+// FOTO CAMERA - CLIENT-SIDE CON getUserMedia
+// ===================================================================
+const faceBtn = document.getElementById('faceBtn');
+const faceInput = document.getElementById('faceInput');
+const faceOverlay = document.getElementById('faceOverlay');
+const faceScanning = document.getElementById('faceScanning');
+const faceStrip = document.getElementById('faceStrip');
+const faceReveal = document.getElementById('faceReveal');
+const faceRevealImg = document.getElementById('faceRevealImg');
+const faceRevealIcon = document.getElementById('faceRevealIcon');
+const faceRevealName = document.getElementById('faceRevealName');
+const faceRevealSub = document.getElementById('faceRevealSub');
+const kioskOverlay = document.getElementById('kioskOverlay');
+const kioskFrame = document.getElementById('kioskFrame');
+
+let scanTimer = null;
+let lastResult = null;
+
+function openFaceOverlay(){
+  faceOverlay.classList.remove('closing');
+  faceOverlay.style.display = 'flex';
+  void faceOverlay.offsetWidth;
+  faceOverlay.classList.add('open');
+  faceScanning.style.display = 'block';
+  faceReveal.style.display = 'none';
+  faceRevealImg.style.display = 'none';
+  faceRevealIcon.style.display = 'none';
+  faceRevealSub.textContent = 'tocca per continuare';
+}
+
+function closeFaceOverlay(){
+  faceOverlay.classList.remove('open');
+  faceOverlay.classList.add('closing');
+  setTimeout(()=>{
+    faceOverlay.style.display = 'none';
+    faceOverlay.classList.remove('closing');
+  }, 350);
+  if(scanTimer) clearTimeout(scanTimer);
+}
+
+faceBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  this.style.transform = 'scale(0.85)';
+  setTimeout(()=>{ this.style.transform = 'scale(1)'; }, 150);
+
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    faceInput.click();
+    return;
+  }
+
+  openFaceOverlay();
+  faceReveal.style.display = 'flex';
+  faceRevealImg.style.display = 'none';
+  faceRevealIcon.style.display = 'flex';
+  faceRevealIcon.innerHTML = '📷';
+  faceRevealName.textContent = 'Apertura webcam...';
+  faceRevealSub.textContent = 'Attendi un momento';
+
+  navigator.mediaDevices.getUserMedia({ 
+    video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } 
+  })
+  .then(function(stream) {
+    faceRevealName.textContent = '📸 Scatto in corso...';
+    faceRevealSub.textContent = '';
+    const video = document.createElement('video');
+    video.srcObject = stream;
+    video.style.display = 'none';
+    document.body.appendChild(video);
+    video.onloadedmetadata = function() {
+      video.play();
+      setTimeout(function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        stream.getTracks().forEach(t => t.stop());
+        document.body.removeChild(video);
+        canvas.toBlob(function(blob) {
+          if (!blob) {
+            closeFaceOverlay();
+            faceInput.click();
+            return;
+          }
+          const file = new File([blob], 'webcam-shot.jpg', { type: 'image/jpeg' });
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          faceInput.files = dataTransfer.files;
+          faceInput.dispatchEvent(new Event('change'));
+        }, 'image/jpeg', 0.85);
+      }, 300);
+    };
+  })
+  .catch(function(err) {
+    console.error('Errore webcam:', err);
+    closeFaceOverlay();
+    faceRevealName.textContent = '❌ Errore webcam';
+    faceRevealSub.textContent = 'Usa il selettore file';
+    setTimeout(()=>{ faceInput.click(); }, 800);
+  });
+});
+
+faceInput.addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  openFaceOverlay();
+  startScanAnimation();
+
+  try {
+    const formData = new FormData();
+    formData.append('foto', file);
+    const identifyUrl = settings.identifyUrl || '/identify';
+    const response = await fetch(identifyUrl, { method: 'POST', body: formData });
+    const result = await response.json();
+    await new Promise(res => setTimeout(res, 800));
+    stopScanAnimationAndReveal(result);
+  } catch (err) {
+    console.error('Errore riconoscimento:', err);
+    stopScanAnimationAndReveal({ status: 'errore' });
+  }
+  faceInput.value = '';
+});
+
+document.getElementById('faceClose').addEventListener('click', closeFaceOverlay);
+
+function personIconSVG(highlight){
+  const stroke = highlight ? 'var(--text)' : 'var(--text-muted)';
+  return `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-3.5 3-6 7-6s7 2.5 7 6"/></svg>`;
+}
+function renderScanStrip(activeIndex){
+  let html = '';
+  for(let i=0;i<12;i++){
+    html += `<span style="flex:0 0 auto;">${personIconSVG(i===activeIndex)}</span>`;
+  }
+  faceStrip.innerHTML = html;
+}
+function startScanAnimation(){
+  let speed = 90;
+  let i = 0;
+  faceScanning.style.display = 'block';
+  faceReveal.style.display = 'none';
+  function tick(){
+    i = (i+1) % 12;
+    renderScanStrip(i);
+    scanTimer = setTimeout(tick, speed);
+  }
+  tick();
+}
+function stopScanAnimationAndReveal(result){
+  clearTimeout(scanTimer);
+  let i = 0;
+  let speed = 90;
+  function decel(){
+    i = (i+1) % 12;
+    renderScanStrip(i);
+    speed += 40;
+    if(speed < 450){
+      scanTimer = setTimeout(decel, speed);
+    } else {
+      showReveal(result);
+    }
+  }
+  decel();
+}
+function showReveal(result){
+  lastResult = result;
+  faceScanning.style.display = 'none';
+  faceReveal.style.display = 'flex';
+  
+  if(result && result.status === 'riconosciuto'){
+    faceRevealImg.src = result.thumbnailUrl;
+    faceRevealImg.style.display = 'block';
+    faceRevealIcon.style.display = 'none';
+    faceRevealName.textContent = result.name;
+    faceRevealSub.textContent = 'tocca per vedere le sue foto';
+  } else if(result && result.status === 'sconosciuto'){
+    if(result.previewUrl){
+      faceRevealImg.src = result.previewUrl;
+      faceRevealImg.style.display = 'block';
+      faceRevealIcon.style.display = 'none';
+    } else {
+      faceRevealIcon.style.display = 'flex';
+      faceRevealIcon.innerHTML = '?';
+      faceRevealImg.style.display = 'none';
+    }
+    faceRevealName.textContent = result.message || 'Persona non riconosciuta';
+    faceRevealSub.textContent = 'foto aggiunta all\'album "Da taggare" su Immich';
+  } else {
+    faceRevealIcon.style.display = 'flex';
+    faceRevealIcon.innerHTML = '⚠';
+    faceRevealImg.style.display = 'none';
+    faceRevealName.textContent = 'Errore';
+    faceRevealSub.textContent = 'non sono riuscito a contattare il bridge';
+  }
+}
+faceReveal.addEventListener('click', ()=>{
+  if(lastResult && lastResult.status === 'riconosciuto' && lastResult.personId){
+    closeFaceOverlay();
+    if (settings.kioskUrl) {
+      kioskFrame.src = settings.kioskUrl + (settings.kioskUrl.includes('?') ? '&' : '?') + 'person=' + encodeURIComponent(lastResult.personId);
+      kioskOverlay.style.display = 'block';
+    }
+  } else {
+    closeFaceOverlay();
+  }
+});
+document.getElementById('kioskClose').addEventListener('click', ()=>{
+  kioskOverlay.style.display = 'none';
+  kioskFrame.src = '';
+});
+
+// ===================================================================
+// SUONI PER DORMIRE
+// ===================================================================
+let sleepNode = null;
+let sleepTimer = null;
+let sleepPlaying = false;
+
+function makeNoiseBuffer(ctx, kind){
+  const bufferSize = 2 * ctx.sampleRate;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  let lastOut = 0;
+  for(let i=0;i<bufferSize;i++){
+    const white = Math.random()*2 - 1;
+    if(kind === 'rosa'){
+      lastOut = (lastOut + 0.02*white) / 1.02;
+      data[i] = lastOut * 3.5;
+    } else if(kind === 'pioggia'){
+      lastOut = (lastOut + 0.06*white) / 1.06;
+      data[i] = lastOut * 2.2 + white*0.03;
+    } else {
+      data[i] = white * 0.3;
+    }
+  }
+  return buffer;
+}
+function startSleepSound(kind, minutes){
+  stopSleepSound();
+  const ctx = ensureAudioCtx();
+  const source = ctx.createBufferSource();
+  source.buffer = makeNoiseBuffer(ctx, kind);
+  source.loop = true;
+  const gain = ctx.createGain();
+  gain.gain.value = 0.5;
+  source.connect(gain);
+  gain.connect(ctx.destination);
+  source.start();
+  sleepNode = { source, gain };
+  sleepPlaying = true;
+  updateSleepUI();
+  if(minutes > 0){
+    sleepTimer = setTimeout(()=>{ stopSleepSound(); }, minutes*60000);
+  }
+}
+function stopSleepSound(){
+  if(sleepNode){
+    try{ sleepNode.source.stop(); }catch(e){}
+    sleepNode = null;
+  }
+  if(sleepTimer){ clearTimeout(sleepTimer); sleepTimer = null; }
+  sleepPlaying = false;
+  updateSleepUI();
+}
+function updateSleepUI(){
+  const icon = document.getElementById('sleepSoundIcon');
+  const status = document.getElementById('sleepSoundStatus');
+  if(sleepPlaying){
+    icon.innerHTML = '<rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/>';
+    status.textContent = 'In riproduzione — tocca per fermare';
+  } else {
+    icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
+    status.textContent = 'Nota: sono suoni generati dal browser, si fermano se chiudi la pagina.';
+  }
+}
+document.getElementById('sleepSoundToggle').addEventListener('click', ()=>{
+  if(sleepPlaying){
+    stopSleepSound();
+  } else {
+    const kind = document.getElementById('sleepSoundSelect').value;
+    const minutes = parseInt(document.getElementById('sleepTimerSelect').value);
+    startSleepSound(kind, minutes);
+  }
+});
+
+// ===================================================================
+// SLEEP AS ANDROID
+// ===================================================================
+const ACTION_SLEEP_START = 'com.urbandroid.sleep.alarmclock.START_SLEEP_TRACK';
+const ACTION_SLEEP_STOP  = 'com.urbandroid.sleep.alarmclock.STOP_SLEEP_TRACK';
+const SLEEP_PACKAGE = 'com.urbandroid.sleep';
+let sleepTracking = false;
+
+function buildBroadcastIntentUri(action, pkg){
+  return `intent://#Intent;action=${action};package=${pkg};end`;
+}
+function isFullyKiosk(){
+  return typeof fully !== 'undefined' && typeof fully.broadcastIntent === 'function';
+}
+function sendSleepBroadcast(action){
+  if(!isFullyKiosk()){
+    alert('Questa azione funziona solo dentro Fully Kiosk Browser (con "JavaScript Interface" attiva nelle sue impostazioni).');
+    return false;
+  }
+  try{
+    fully.broadcastIntent(buildBroadcastIntentUri(action, SLEEP_PACKAGE));
+    return true;
+  }catch(e){
+    console.error('broadcastIntent fallito', e);
+    return false;
+  }
+}
+function updateSleepButtonUI(){
+  const label = document.getElementById('sleepToggleLabel');
+  const icon = document.getElementById('sleepToggleIcon');
+  if(sleepTracking){
+    label.textContent = 'Sveglia — ferma monitoraggio sonno';
+    icon.innerHTML = '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/>';
+  } else {
+    label.textContent = 'Buonanotte — avvia monitoraggio sonno';
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  }
+}
+document.getElementById('sleepToggleBtn').addEventListener('click', ()=>{
+  const action = sleepTracking ? ACTION_SLEEP_STOP : ACTION_SLEEP_START;
+  if(sendSleepBroadcast(action)){
+    sleepTracking = !sleepTracking;
+    updateSleepButtonUI();
+  }
+});
+async function pollSleepStats(){
+  if(!settings.sleepStatsUrl) return;
+  try{
+    const res = await fetch(settings.sleepStatsUrl);
+    const data = await res.json();
+    renderSleepSummary(data);
+  }catch(e){ console.error('errore lettura sleep stats', e); }
+}
+function renderSleepSummary(data){
+  const el = document.getElementById('sleepReportSummary');
+  if(!data || !data.last){
+    el.textContent = 'Nessun dato dal sonno ricevuto ancora.';
+    return;
+  }
+  const d = data.last.data || {};
+  const quality = d.sleepQuality || d.quality || d.rating;
+  const lengthMin = d.lengthMinutes || d.length || d.duration;
+  const event = d.event || d.EVENT || '';
+  let text = '';
+  if(quality) text += `Qualità: ${quality}  `;
+  if(lengthMin) text += `Durata: ${Math.round(lengthMin)} min  `;
+  if(event) text += `(${event})`;
+  el.textContent = text || ('Ultimo evento: ' + new Date(data.last.received_at).toLocaleString('it-IT'));
+}
+
+// ===================================================================
+// INIT
+// ===================================================================
+updateSleepButtonUI();
+updateClock();
+setInterval(updateClock, 1000*10);
+loadAlarms();
+loadAgenda();
+loadTodos();
+loadNas();
+loadSettings().then(()=>{
+  fetchExternalAgenda();
+  fetchExternalNas();
+  pollSleepStats();
+  setInterval(fetchExternalAgenda, 5*60*1000);
+  setInterval(fetchExternalNas, 5*60*1000);
+  setInterval(pollSleepStats, 60*1000);
+});
+
+const now = new Date();
+now.setHours(0,0,0,0);
+agendaViewDate = now;
+</script>
+</body>
+</html>
