@@ -94,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – ENDPOINT CORRETTO: /faces?id=...
+# IMMICH FACE – PARSING CORRETTO
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -118,7 +118,6 @@ def immich_get_faces(asset_id):
     
     for attempt in range(max_retries):
         try:
-            # ENDPOINT CORRETTO: /faces?id=...
             url = f"{IMMICH_URL}/faces?id={asset_id}"
             app.logger.info(f"[faces] tentativo {attempt+1}: {url}")
             
@@ -195,22 +194,21 @@ def identify():
     person_id = None
     person_name = None
 
-    # DEBUG: stampa ogni volto per vedere la struttura
-    for idx, face in enumerate(faces):
-        app.logger.info(f"[identify] face {idx}: {json.dumps(face, indent=2)}")
-        
-        # Tenta di estrarre la persona dai campi personId e personName
-        pid = face.get("personId")
-        pname = face.get("personName")
-        
-        if pid and pname:
-            person_id = pid
-            person_name = pname
-            app.logger.info(f"[identify] persona trovata: {pname} (id: {pid})")
-            break
+    # PARSING CORRETTO: usa face["person"]["id"] e face["person"]["name"]
+    for face in faces:
+        person = face.get("person")
+        if person:
+            pid = person.get("id")
+            pname = person.get("name")
+            if pid and pname:
+                person_id = pid
+                person_name = pname
+                app.logger.info(f"[identify] ✅ PERSONA TROVATA: {pname} (id: {pid})")
+                break
 
     if person_id and person_name:
         immich_delete_asset(asset_id)
+        app.logger.info(f"[identify] ✅ RICONOSCIUTO: {person_name}")
         return jsonify({
             "status": "riconosciuto",
             "personId": person_id,
@@ -225,6 +223,7 @@ def identify():
         except Exception as e:
             app.logger.error(f"[identify] errore aggiunta album: {e}")
         
+        app.logger.info(f"[identify] ❌ SCONOSCIUTO: nessun volto riconosciuto")
         return jsonify({
             "status": "sconosciuto",
             "message": "Nessun volto riconosciuto",
