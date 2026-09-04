@@ -94,7 +94,7 @@ def nas():
 
 
 # ==================================================================
-# IMMICH FACE – CON LOGGING COMPLETO
+# IMMICH FACE – ENDPOINT CORRETTO: /faces?assetId=...
 # ==================================================================
 def immich_upload(file_storage):
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -118,7 +118,8 @@ def immich_get_faces(asset_id):
     
     for attempt in range(max_retries):
         try:
-            url = f"{IMMICH_URL}/assets/{asset_id}/faces"
+            # ENDPOINT CORRETTO: /faces?assetId=...
+            url = f"{IMMICH_URL}/faces?assetId={asset_id}"
             app.logger.info(f"[faces] tentativo {attempt+1}: {url}")
             
             r = requests.get(url, headers=immich_headers(), timeout=10)
